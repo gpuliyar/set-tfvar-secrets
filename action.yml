@@ -1,0 +1,25 @@
+name: Set TF Secrets
+description: Set Terraform secrets as environment variables
+inputs:
+  working-directory:
+    description: Terraform working directory
+    required: true
+    default: ./terraform
+  secret-file:
+    description: Terraform secrets property file
+    required: true
+    default: .tfvars.secrets
+runs:
+  using: composite
+  steps:
+    - run: |
+        SECRETS_JSON=$(aws secretsmanager \
+                get-secret-value \
+                --secret-id ${{ github.repository }} \
+                --query SecretString \
+                --output text)
+        while IFS='=' read -r k v; do
+            TOKEN=$(echo $SECRETS_JSON | jq -r '."'"$v"'"')
+            echo "$k=$TOKEN" >> $GITHUB_ENV
+        done < ${{ inputs.working-directory }}/${{ inputs.secret-file }}
+      shell: bash
